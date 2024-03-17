@@ -4,60 +4,122 @@ class MyPoint():
     def __init__(self, x: float, y: float) -> None:
         self.x: float = x
         self.y: float = y
-        
-class PointAnimation(Scene):
-    def __init__(self):
-        self.dots: List[Dot] = []
-        
-    def construct(self):
-        control = [
-            MyPoint(100, 300),
-            MyPoint(200, 50),
-            MyPoint(300, 300),
-            MyPoint(400, 50),
-            MyPoint(500, 300),
-        ]
 
-        iterations = 1
+class BezierCurve():
+    def __init__(self):
+        self.left_dots: List[Dot] = []
+        self.right_dots: List[Dot] = []
+
+class PointAnimation(Scene):
+    def construct(self):
+        # List of control points
+        control = [
+            MyPoint(10, 5),
+            MyPoint(20, 30),
+            MyPoint(30, 5),
+        ]
+        
+        # Normalize coordinates to -1 <= x <= 1
+        iterations = 2
         max_x, max_y = self.getMax(control)
         control = self.normalize(control, max_x, max_y)
         
+        # Move points to the center of the screen
         avg = self.getAverage(control)
         control = self.shift(control, avg)
         
-        self.reduce(control, control[0], control[len(control) - 1], 0, iterations)
+        # Start recursive Bezier curve generation
+        global iterationsList
+        iterationsList = [[] for _ in range(iterations)]
+        
+        global rightmost
+        rightmost = control[len(control) - 1]
+        
+        self.reduce(control, [control[0]], [control[len(control) - 1]], 0, iterations)
         
     def reduce(self, arr: List[MyPoint], left: List[MyPoint], right: List[MyPoint], iter: int, iterations: int) -> List[MyPoint]:
         left_arr: List[MyPoint] = [arr[0]]
         right_arr: List[MyPoint] = [arr[len(arr) - 1]]
-        
-        dots: List[Dot] = []
               
+        dots: List[Dot] = []
         while len(arr) > 1:
-            for point in arr:
-                dot = Dot(color=WHITE, radius=0.25).move_to([point.x, point.y, 0])
-                dots.append(dot)
-                self.play(Create(dot))
-                
+            # Fill dots array if empty
+            if len(dots) == 0:
+                for point in arr:
+                    dot = Dot(color=WHITE, radius=0.25).move_to([point.x, point.y, 0])
+                    dots.append(dot)
+                    if point not in left + right or not iter:
+                        self.play(Create(dot))
+            
+            # Iterate through arr to get midpoints
             new_arr: List[MyPoint] = []
+            new_dots: List[Dot] = []
+            lines: List[Line] = []
             for i in range(len(arr) - 1):
+                # Append midpoint to new_arr
                 new_arr.append(self.midpoint(arr[i], arr[i + 1]))
                 
                 # Create line
                 line = Line(dots[i].get_center(), dots[i + 1].get_center(), color=YELLOW, z_index=-999)
+                lines.append(line)
                 
                 self.play(Create(line))
                 
                 # Create midpoint
                 mid_loc = self.midpoint(arr[i], arr[i + 1])
                 midpoint = Dot(color=BLUE, radius=0.2).move_to([mid_loc.x, mid_loc.y, 0])
+                new_dots.append(midpoint)
                 
                 self.play(Create(midpoint))
+                
+                # Delete current dot from screen
+                if arr[i] != right[0]:
+                    if not left or arr[i] != left[0]:
+                        self.play(FadeOut(dots[i]))
             
+            # Delete last dot
+            last_point = arr[len(arr) - 1]
+            if last_point != right[0]:
+                self.play(FadeOut(dots[len(dots) - 1]))
+                
+            # Add to left_arr and right_arr
             left_arr += [new_arr[0]]
             right_arr = [new_arr[len(new_arr) - 1]] + right_arr
             arr = new_arr
             
+            # Clear lines from screen
+            for l in lines:
+                self.play(FadeOut(l))
+                
+            # Make new_dots as dots
+            for d in new_dots:
+                d.set_color(WHITE)
+            dots = new_dots
+         
+        # Draw current iteration of points
+        global iterationsList
+        iterationsList[iter] += left + arr + right
+        
+        global rightmost
+        lines = []
+        if right[0] == rightmost:
+            for i in range(len(iterationsList[iter]) - 1):
+                point_1: MyPoint = iterationsList[iter][i]
+                point_2: MyPoint = iterationsList[iter][i + 1]
+                
+                coord_1: List[float] = [point_1.x, point_1.y, 0]
+                coord_2: List[float] = [point_2.x, point_2.y, 0]
+                
+                line = Line(coord_1, coord_2, color=YELLOW, z_index=-999)
+                lines.append(line)
+                
+                self.play(Create(line))
+                
+            self.wait(3)
+            for l in lines:
+                self.play(FadeOut(l))
+                
+        # Continue to next iteration   
         if iter == iterations - 1:
             return arr
         else:
