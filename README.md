@@ -15,6 +15,16 @@ To install manim, please follow the guide at: https://docs.manim.community/en/st
 
 To install FFmpeg, please follow the guide at: https://www.wikihow.com/Install-FFmpeg-on-Windows
 
+Additionally, running the program requires the following Python libraries installed:
+- typing
+- termcolor
+- PIL
+- datetime
+- numpy
+- shutil
+- subprocess
+If you encounter errors relating to these libraries when running, please ensure you have these extensions installed.
+
 # How to Run
 
 To run the program:
